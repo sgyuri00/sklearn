@@ -1,0 +1,95 @@
+data = pd.read_csv('adatszet_A_csoport.csv', sep = ';')
+print(data)
+
+
+sns.set(rc={'figure.figsize':(10,10)})
+sns.heatmap(data.corr(), annot=True, fmt='.2f', linewidth=1)
+
+X = data.iloc[:, :11]
+y = data.iloc[:, 11]
+
+print(data.head())
+print(X.shape)
+print(y.shape)
+
+
+means = [data[column].astype(float).mean() for column in data.columns]
+
+for mean, column in zip(means, data.columns):
+        data[column].replace(np.nan, round(mean,1), inplace=True)
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=10)
+
+
+estimators = []
+
+estimators.append(('log1', LogisticRegression(C=1,solver='saga', tol = 0.01)))
+estimators.append(('log2', LogisticRegression(C=10,solver='newton-cg', tol = 1)))
+estimators.append(('log3', LogisticRegression(C=0.1,solver='saga', tol = 0.1)))
+
+ensemble = VotingClassifier(estimators, verbose = True)
+
+results= model_selection.cross_val_score(ensemble, X,y, cv= 5)
+print(results.mean())
+
+
+clf1 = SVC(kernel='rbf', gamma=1, random_state=10)
+clf1.fit(X_train, y_train)
+clf_score1 = clf1.score(X_test,y_test)
+
+clf2 = SVC(kernel='rbf', gamma=0.1, random_state=12)
+clf2.fit(X_train, y_train)
+clf_score2 = clf2.score(X_test,y_test)
+
+print(clf_score1)
+print(clf_score2)
+
+
+
+param_grid_lr = {'C': [0.1, 1, 10, 100, 1000],
+'tol': [1, 0.1, 0.01, 0.001, 0.0001],
+'solver': ['lbfgs', 'saga']}
+
+grid = GridSearchCV(logistic_regression, param_grid_lr, verbose=1)
+grid.fit(X_train, y_train)
+
+print('Best Par:',grid.best_params_)
+
+
+
+
+
+param_grid = {'C': [0.1, 1, 10, 100, 1000],
+'gamma': [1, 0.1, 0.01, 0.001, 0.0001],
+'kernel': ['rbf']}
+
+grid = model_selection.GridSearchCV(clf, param_grid, verbose=1)
+grid.fit(X_train, y_train)
+
+
+print('Best Par:',grid.best_params_)
+
+
+
+### Legjobb parameterek
+# we store in estimators[] our models 
+estimators = []
+
+# Logistic Regression with the previously calculated best hyperparams
+model1 = LogisticRegression(C=1, solver='lbfgs', tol=0.1)
+estimators.append(('logistic', model1)) # tuple!
+
+# SVM with the previously calculated best hyperparams
+model2 = SVC(C=10, gamma =0.1 , kernel='rbf')
+estimators.append(('svm', model2)) # tuple!
+
+# Putting our tuples into the VotingClassifier
+ensembleVC = VotingClassifier(estimators=estimators) # takes only tuples
+results = cross_val_score(ensembleVC, X, y, cv=5)
+print('Accuracy cross_val:',results.mean())
+
+
+
+print('Pontosság accuracy_score:', accuracy_score(y_test, y_pred))
+
